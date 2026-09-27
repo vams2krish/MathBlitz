@@ -1,0 +1,1 @@
+"""MathBlitz application package."""
