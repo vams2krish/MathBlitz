@@ -8,11 +8,11 @@ A responsive browser interface and a native Android client share one versioned F
 
 **No Streamlit. No external AI service or API key required. No frontend build step.**
 
-[Quick Start](#quick-start) | [Scenarios](#scenario-library) | [User Journey](#the-end-to-end-flow) | [Architecture](#architecture) | [API](#rest-api) | [Android](#android-app) | [Testing](#testing-and-verification)
+[Quick Start](#quick-start) | [Showcase](#android-showcase) | [Live Test](#live-demo-verification) | [Scenarios](#scenario-library) | [Architecture](#architecture) | [API](#rest-api) | [Android](#android-app)
 
 ![MathBlitz welcome screen with practical math scenarios, five difficulty levels, and account access](docs/images/mathblitz-welcome.jpg)
 
-*Actual application screenshot captured locally on October 28, 2026. Workspace screenshots below use a disposable demo account, not personal user data.*
+*Actual web screenshots captured on October 28, 2026; native Android showcases captured on October 29, 2026. All visible accounts and scores are synthetic demonstration data, not real users or measured learning outcomes.*
 
 ## The Problem
 
@@ -52,7 +52,7 @@ The product direction is age-inclusive, but difficulty levels are **not age-cali
 | Feedback | Hints, correct/incorrect/timeout outcomes, points, accuracy, recent attempts |
 | Identity | Username/password registration, scrypt hashes, signed expiring bearer tokens |
 | Verification | Focused pytest domain, API, security, and legacy-compatibility tests |
-| Status | Runnable local application; production hardening and Android device validation remain |
+| Status | Local live HTTP and Android portrait/landscape verified; hosted production validation remains |
 
 ### Practice Workspace
 
@@ -65,6 +65,54 @@ The workspace combines the scenario, level, countdown, answer controls, hints, a
 ![MathBlitz icon-based scenario library covering shopping, finance, housing, office work, and other everyday situations](docs/images/mathblitz-library.jpg)
 
 The library provides a separate exploration view beyond the featured categories. Variation labels in the interface are catalog estimates, as explained below.
+
+## Android Showcase
+
+These are real captures from the native Java app installed on an Android 16 emulator, connected to a running MathBlitz API. They are not mockups or a browser dressed up as a phone. Demo history was prepared through actual API submissions; the budget answer and score update were also exercised manually through the Android UI.
+
+| Welcome | Live Practice | Correct Answer |
+| --- | --- | --- |
+| <img src="docs/images/android-welcome.jpg" alt="Native Android welcome screen with real-life math introduction" width="240"> | <img src="docs/images/android-practice.jpg" alt="Native Android timed budget scenario and answer controls" width="240"> | <img src="docs/images/android-result.jpg" alt="Native Android correct answer feedback showing 14 points awarded and updated progress" width="240"> |
+
+| Scenario Library | Progress And Leaderboard | Connection Settings |
+| --- | --- | --- |
+| <img src="docs/images/android-library.jpg" alt="Native Android daily-life library with DIY, health, recipes, utilities, and estimation categories" width="240"> | <img src="docs/images/android-progress.jpg" alt="Native Android progress metrics and rankings for synthetic demo users" width="240"> | <img src="docs/images/android-settings.jpg" alt="Native Android API connection setting and sign-out control" width="240"> |
+
+### Landscape Layout
+
+The same installed client reorganizes all five level controls into one row in landscape, with a wider scenario card. An orientation change was exercised during the live walkthrough; saved sign-in and account progress were restored.
+
+![Actual MathBlitz Android landscape layout with all five levels and a daily-budget scenario](docs/images/android-landscape.jpg)
+
+<details>
+<summary>More Native Workspace And Hint Views</summary>
+
+| Workspace Overview | Strategy Hint |
+| --- | --- |
+| <img src="docs/images/android-overview.jpg" alt="Native Android account overview, daily focus, score, category cards, and working navigation" width="280"> | <img src="docs/images/android-hint.jpg" alt="Native Android strategy hint explaining a daily spending calculation" width="280"> |
+
+</details>
+
+## Live Demo Verification
+
+**Last verified: October 29, 2026.** This is a local production-mode demonstration, not an assertion that a public production deployment has been audited. Uvicorn ran without reload, using an isolated SQLite database, a non-default signing secret, and the in-memory cache adapter.
+
+| Boundary | Evidence |
+| --- | --- |
+| Automated suite | **24 tests passed**, including real HTTP process tests |
+| Category/level coverage | All **60 combinations** issued and submitted over HTTP: 12 categories x five levels |
+| Persistence | Preferences and scores remained correct after stopping and restarting the real server |
+| Submission integrity | Eight competing submissions produced one `201` and seven `409` responses |
+| Account isolation | Another account's task submission was rejected with `404` |
+| Cache refresh | Leaderboard limits 1, 5, 10, and 100 refreshed after a submission |
+| Android-to-API flow | Sign-in, catalog, preferences, task issue, timeout, correct submission, feedback, and score refresh exercised |
+| Independent live example | ($279 - $5) / 14 = **$19.57/day**; persisted as correct with **14 points** |
+| Native layouts | Phone portrait and landscape, library, hints, progress/rankings, and settings inspected |
+| APK | Built, signature-verified, installed, and launched; signing key preserved across a second build |
+
+The web screenshots above remain the previously verified October 28 captures. A new browser walkthrough was blocked on October 29 because local browser access was disabled in the test host's Work settings. Redis/PostgreSQL, hosted HTTPS, physical phones, tablet-specific layouts, and production capacity were **not** verified in this run.
+
+See the [full live demo verification report](docs/DEMO_VERIFICATION.md) for commands, evidence, fixes, and release limitations.
 
 ## Scenario Library
 
@@ -202,7 +250,7 @@ The intended shared-deployment direction is multiple API workers behind a TLS re
 
 Current operational considerations:
 
-- Only the default top-10 leaderboard cache is explicitly invalidated after submission; other limits can remain stale until their TTL expires.
+- Successful submissions invalidate the user's dashboard key and all supported leaderboard-limit keys (1-100).
 - No scheduled cleanup worker removes abandoned task sessions.
 - Schema changes need a release migration process; `create_all` does not evolve existing tables.
 - Backups, metrics, tracing, request-wide rate limits, pool tuning, and capacity testing remain deployment work.
@@ -383,11 +431,11 @@ For physical-device access on a trusted local network:
 .\.venv\Scripts\python.exe -m uvicorn app:app --host 0.0.0.0 --port 8000
 ```
 
-Allow access only from intended devices. `0.0.0.0` is a listening address, not the address entered in the app. The URL setting currently lives inside the signed-in workspace; a fresh physical-device install may need its initial base URL configured in `MainActivity.java` before building.
+Allow access only from intended devices. `0.0.0.0` is a listening address, not the address entered in the app. The API URL can be configured on the sign-in screen or from Settings. Saving a server URL clears the previous account session, so its bearer token is not forwarded to the newly selected server.
 
-The manifest permits cleartext HTTP for local development. Use HTTPS and review network/backup/token-storage settings before distribution. The debug script recreates its signing key on every build, so replacing an installation may require uninstalling it first, removing local client settings.
+The manifest permits cleartext HTTP for local development. Use HTTPS and review network/backup/token-storage settings before distribution. Debug builds now retain `android/debug.keystore` outside the cleaned output directory and reuse a previous build key when first upgrading this script. The key remains ignored by Git; release signing is still separate work. The manifest declares minimum SDK 23 and target SDK 35.
 
-**Verification boundary:** debug APK compilation and signature verification have succeeded. Native navigation, layout behavior, accessibility, and API interactions have not been verified on an emulator or physical device. Build success is not a claim of store/device readiness.
+**Verification boundary:** debug compilation, signature verification, installation, sign-in, API-backed practice/results, native navigation, and portrait/landscape presentation were exercised on an Android 16 emulator. Physical phones, tablets, assistive technologies, older supported Android versions, and store distribution remain unverified.
 
 More details: [Android README](android/README.md).
 
@@ -428,9 +476,9 @@ The focused suite covers:
 
 ### Verification Snapshot
 
-On October 28, 2026, the existing suite completed with **17 tests passing**. A local browser walkthrough also verified sign-in, catalog loading, scenario issue, a correct answer submission, a saved score update, and the scenario-library view. The three screenshots in this README came from that live application, not design mockups.
+On October 29, 2026, the expanded suite completed with **24 tests passing**, including two tests that launch a real Uvicorn process and send HTTP requests. All 60 category/level combinations, a restart with persistent state, and eight concurrent submissions were exercised. Native Android UI verification and nine new captures are described in [Live Demo Verification](#live-demo-verification). The October 28 web walkthrough and its three original screenshots remain valid historical evidence, not a newly repeated browser test.
 
-These tests are not exhaustive mathematical proofs or a 10,000-unique-puzzle audit. Redis/PostgreSQL deployment behavior, concurrent load, browser end-to-end automation, Android instrumentation, and device accessibility are not covered by the existing suite.
+These tests are not exhaustive mathematical proofs or a 10,000-unique-puzzle audit. The competing-submission check is not a capacity benchmark. Redis/PostgreSQL deployment behavior, sustained load, automated browser tests, Android instrumentation, and device accessibility are not covered by the suite.
 
 ## Legacy Data Migration
 
@@ -496,8 +544,8 @@ Important boundaries:
 | Cannot resubmit a completed task | Each task permits one attempt; request a new scenario |
 | Android cannot reach `127.0.0.1` | Use emulator address `10.0.2.2` or the host's LAN address |
 | Android build fails | Check SDK/JDK environment variables and required tools, including D8 |
-| Android reinstall signature mismatch | Uninstall the previous debug app before installing the newly signed build |
-| Scoreboard briefly stale | Summary reads are cached; non-default leaderboard limits may wait for TTL expiry |
+| Android reinstall signature mismatch | An older APK may use another key; preserve its matching debug key for upgrades. Uninstalling an old app removes local settings |
+| Scoreboard briefly stale | Reads use short-lived caches; supported leaderboard keys are invalidated after a submission |
 
 ## Roadmap
 
@@ -505,8 +553,8 @@ Important boundaries:
 - Measure unique coverage; add repetition control, curated daily sets, and progressive practice paths.
 - Add untimed modes, broader currencies/units, and reading-level adjustments.
 - Modularize Android state/screens and add emulator, device, and accessibility tests.
-- Add persistent release signing, explicit Android SDK targeting, and reproducible mobile releases.
-- Introduce versioned migrations, task-session cleanup, complete cache invalidation, and monitoring.
+- Add protected release signing and a reproducible mobile release pipeline beyond the retained local debug key.
+- Introduce versioned migrations, task-session cleanup, cross-instance cache tests, and monitoring.
 - Add account lifecycle controls, update privacy/terms, and define safeguards for younger audiences.
 - Add CI, Redis/PostgreSQL integration tests, browser end-to-end tests, and load testing.
 
@@ -524,6 +572,7 @@ No standalone `LICENSE` file is included. Public repository visibility does not 
 - [REST API](docs/API.md)
 - [Database Design](docs/DATABASE.md)
 - [Android Client](android/README.md)
+- [Live Demo Verification](docs/DEMO_VERIFICATION.md)
 - [Issue Tracker](https://github.com/vams2krish/MathBlitz/issues)
 
 **MathBlitz: short practical challenges, clearer everyday number sense.**

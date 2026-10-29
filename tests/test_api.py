@@ -1,5 +1,6 @@
 from decimal import Decimal
 
+import pytest
 from fastapi.testclient import TestClient
 
 from mathblitz.db.models import TaskSession
@@ -125,3 +126,28 @@ def test_security_headers_are_applied(client: TestClient) -> None:
     response = client.get("/")
     assert response.headers["x-content-type-options"] == "nosniff"
     assert "frame-ancestors 'none'" in response.headers["content-security-policy"]
+
+
+@pytest.mark.parametrize("limit", [1, 5, 10, 100])
+def test_submission_invalidates_every_leaderboard_limit(
+    authorized_client: TestClient, limit: int
+) -> None:
+    endpoint = f"/api/v1/leaderboard?limit={limit}"
+    assert authorized_client.get(endpoint).json() == []
+    issued = authorized_client.post(
+        "/api/v1/tasks",
+        json={"activity_id": "budget-planner", "difficulty": "Very Easy"},
+    ).json()
+    with authorized_client.app.state.container.sessions() as session:
+        answer = str(session.get(TaskSession, issued["id"]).correct_answer)
+    result = authorized_client.post(
+        f"/api/v1/tasks/{issued['id']}/submissions", json={"answer": answer}
+    )
+    assert result.status_code == 201
+    assert authorized_client.get(endpoint).json()[0]["score"] == result.json()["points"]
+
+
+def test_unknown_api_routes_return_json(client: TestClient) -> None:
+    response = client.get("/api/v1/does-not-exist")
+    assert response.status_code == 404
+    assert response.json() == {"detail": "Not found."}

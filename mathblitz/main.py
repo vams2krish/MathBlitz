@@ -3,7 +3,7 @@
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, Response
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
@@ -60,9 +60,9 @@ def create_app(settings: Settings | None = None, cache: Cache | None = None) -> 
         return FileResponse(index_path)
 
     @app.get("/{route:path}", include_in_schema=False)
-    def web_routes(route: str) -> FileResponse:
-        if route.startswith("api/"):
-            return FileResponse(index_path, status_code=404)
+    def web_routes(route: str) -> Response:
+        if route == "api" or route.startswith("api/"):
+            return JSONResponse({"detail": "Not found."}, status_code=404)
         return FileResponse(index_path)
 
     return app

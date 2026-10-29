@@ -69,6 +69,10 @@ public class MainActivity extends Activity {
     private TextView usernameLabel;
     private TextView scoreLabel;
     private TextView dailyLabel;
+    private TextView insightScore;
+    private TextView insightDaily;
+    private TextView insightAccuracy;
+    private TextView insightStreak;
     private TextView taskSkill;
     private TextView taskTitle;
     private TextView taskPrompt;
@@ -93,6 +97,9 @@ public class MainActivity extends Activity {
     private int solvedToday;
     private double accuracy;
     private int streak;
+    private int taskGeneration;
+    private boolean submitting;
+    private String currentView = "auth";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -119,6 +126,8 @@ public class MainActivity extends Activity {
     }
 
     private void showAuth() {
+        clearTask();
+        currentView = "auth";
         main.removeCallbacksAndMessages(null);
         root = baseRoot();
         ScrollView scroll = scroll();
@@ -155,6 +164,14 @@ public class MainActivity extends Activity {
         Button create = secondaryButton("Create account");
         panel.addView(signIn, lp(-1, -2, 0, 18, 0, 0));
         panel.addView(create, lp(-1, -2, 0, 10, 0, 0));
+        panel.addView(label("API connection"), lp(-1, -2, 0, 18, 0, 0));
+        EditText apiUrl = input("API base URL", false);
+        apiUrl.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_URI);
+        apiUrl.setText(baseUrl);
+        panel.addView(apiUrl);
+        Button saveUrl = ghostButton("Save API URL");
+        saveUrl.setOnClickListener(v -> saveBaseUrl(apiUrl));
+        panel.addView(saveUrl, lp(-1, -2, 0, 10, 0, 0));
         status = text("", 14, MUTED, Typeface.NORMAL);
         panel.addView(status, lp(-1, -2, 0, 12, 0, 0));
 
@@ -191,6 +208,8 @@ public class MainActivity extends Activity {
     }
 
     private void showApp() {
+        scoreLabel = null;
+        dailyLabel = null;
         root = baseRoot();
         ScrollView scroll = scroll();
         LinearLayout shell = vertical();
@@ -211,10 +230,10 @@ public class MainActivity extends Activity {
         LinearLayout nav = horizontal();
         nav.setGravity(Gravity.CENTER_VERTICAL);
         shell.addView(nav, lp(-1, -2, 0, 14, 0, 16));
-        nav.addView(navButton("Practice", () -> renderPractice(false)));
-        nav.addView(navButton("Library", this::renderLibrary), lp(0, -2, 1, 8, 0, 0));
-        nav.addView(navButton("Progress", this::renderProgress), lp(0, -2, 1, 8, 0, 0));
-        nav.addView(navButton("Settings", this::renderSettings), lp(0, -2, 1, 8, 0, 0));
+        nav.addView(navButton("Practice", () -> renderPractice(true)), weightedLp(1, 0, 0, 0));
+        nav.addView(navButton("Library", this::renderLibrary), weightedLp(1, 8, 0, 0));
+        nav.addView(navButton("Progress", this::renderProgress), weightedLp(1, 8, 0, 0));
+        nav.addView(navButton("Settings", this::renderSettings), weightedLp(1, 8, 0, 0));
 
         page = vertical();
         shell.addView(page);
@@ -287,6 +306,8 @@ public class MainActivity extends Activity {
     }
 
     private void renderPractice(boolean issueTask) {
+        clearTask();
+        currentView = "practice";
         page.removeAllViews();
         page.addView(sectionTitle("Choose a scenario category", "Each category generates thousands of practical, age-flexible challenges."));
 
@@ -333,7 +354,7 @@ public class MainActivity extends Activity {
         TextView icon = iconBadge(activity == null ? "?" : iconText(activity), accent(activity == null ? "blue" : activity.accent));
         top.addView(icon);
         LinearLayout meta = vertical();
-        top.addView(meta, lp(0, -2, 1, 12, 0, 0));
+        top.addView(meta, weightedLp(1, 12, 0, 0));
         meta.addView(kicker("Current scenario", BLUE));
         taskSkill = label(activity == null ? "Scenario" : activity.skill);
         taskTitle = text(activity == null ? "Scenario" : activity.name, 20, INK, Typeface.BOLD);
@@ -358,18 +379,19 @@ public class MainActivity extends Activity {
         Button option2 = secondaryButton("Option 2");
         option1.setOnClickListener(v -> chooseOption("1", option1, option2));
         option2.setOnClickListener(v -> chooseOption("2", option2, option1));
-        choiceRow.addView(option1, lp(0, -2, 1, 0, 0, 8));
-        choiceRow.addView(option2, lp(0, -2, 1, 8, 0, 0));
+        choiceRow.addView(option1, weightedLp(1, 0, 0, 8));
+        choiceRow.addView(option2, weightedLp(1, 8, 0, 0));
         task.addView(choiceRow, lp(-1, -2, 0, 12, 0, 0));
 
         LinearLayout actions = horizontal();
+        if (!isWide()) actions.setOrientation(LinearLayout.VERTICAL);
         task.addView(actions, lp(-1, -2, 0, 14, 0, 0));
         submitButton = primaryButton("Submit solution");
         Button hintButton = secondaryButton("Hint");
         Button newButton = ghostButton("New scenario");
-        actions.addView(submitButton, lp(0, -2, 1, 0, 0, 8));
-        actions.addView(hintButton, lp(0, -2, 1, 8, 0, 8));
-        actions.addView(newButton, lp(0, -2, 1, 8, 0, 0));
+        actions.addView(submitButton, isWide() ? weightedLp(1, 0, 0, 8) : lp(-1, -2, 0, 0, 0, 8));
+        actions.addView(hintButton, isWide() ? weightedLp(1, 8, 0, 8) : lp(-1, -2, 0, 0, 0, 8));
+        actions.addView(newButton, isWide() ? weightedLp(1, 8, 0, 0) : lp(-1, -2));
         submitButton.setOnClickListener(v -> submitAnswer(false));
         hintButton.setOnClickListener(v -> taskHint.setVisibility(taskHint.getVisibility() == View.VISIBLE ? View.GONE : View.VISIBLE));
         newButton.setOnClickListener(v -> issueTask());
@@ -389,14 +411,32 @@ public class MainActivity extends Activity {
         GridLayout grid = new GridLayout(this);
         grid.setColumnCount(isWide() ? 4 : 2);
         page.addView(grid);
-        grid.addView(metricCard("Daily focus", solvedToday + " / 12"), gridLp());
-        grid.addView(metricCard("Total score", String.valueOf(totalScore)), gridLp());
-        grid.addView(metricCard("Accuracy", String.format(Locale.US, "%.1f%%", accuracy)), gridLp());
-        grid.addView(metricCard("Streak", streak + " solves"), gridLp());
+        LinearLayout daily = metricCard("Daily focus", solvedToday + " / 12");
+        LinearLayout score = metricCard("Total score", String.valueOf(totalScore));
+        LinearLayout mastery = metricCard("Accuracy", String.format(Locale.US, "%.1f%%", accuracy));
+        LinearLayout chain = metricCard("Streak", streak + " solves");
+        insightDaily = (TextView) daily.getChildAt(0);
+        insightScore = (TextView) score.getChildAt(0);
+        insightAccuracy = (TextView) mastery.getChildAt(0);
+        insightStreak = (TextView) chain.getChildAt(0);
+        grid.addView(daily, gridLp());
+        grid.addView(score, gridLp());
+        grid.addView(mastery, gridLp());
+        grid.addView(chain, gridLp());
+    }
+
+    private void clearTask() {
+        if (timerTick != null) main.removeCallbacks(timerTick);
+        timerTick = null;
+        currentTaskId = null;
+        submitting = false;
+        taskGeneration++;
     }
 
     private void issueTask() {
         if (activities.isEmpty()) return;
+        clearTask();
+        final int generation = taskGeneration;
         JSONObject body = new JSONObject();
         try {
             body.put("activity_id", selectedActivityId);
@@ -409,6 +449,7 @@ public class MainActivity extends Activity {
         api("POST", "/api/v1/tasks", body, new JsonCallback() {
             @Override
             public void ok(Object payload) throws Exception {
+                if (generation != taskGeneration || !"practice".equals(currentView)) return;
                 JSONObject json = (JSONObject) payload;
                 currentTaskId = json.getString("id");
                 currentAnswerMode = json.getString("answer_mode");
@@ -425,6 +466,7 @@ public class MainActivity extends Activity {
 
             @Override
             public void fail(String message) {
+                if (generation != taskGeneration || !"practice".equals(currentView)) return;
                 showTaskMessage(message, false);
             }
         });
@@ -433,13 +475,19 @@ public class MainActivity extends Activity {
     private void configureAnswer(String mode) {
         boolean choice = "choice".equals(mode);
         answerInput.setText("");
+        answerInput.setEnabled(true);
         answerInput.setVisibility(choice ? View.GONE : View.VISIBLE);
         choiceRow.setVisibility(choice ? View.VISIBLE : View.GONE);
+        for (int i = 0; i < choiceRow.getChildCount(); i++) {
+            choiceRow.getChildAt(i).setEnabled(true);
+            choiceRow.getChildAt(i).setBackground(roundRect(SURFACE, BORDER, 1, 14));
+        }
         submitButton.setEnabled(!choice);
         if (!choice) answerInput.requestFocus();
     }
 
     private void chooseOption(String answer, Button selected, Button other) {
+        if (currentTaskId == null || submitting) return;
         selectedChoice = answer;
         selected.setBackground(roundRect(Color.rgb(231, 242, 250), BLUE, 2, 14));
         selected.setTextColor(BLUE);
@@ -449,7 +497,7 @@ public class MainActivity extends Activity {
     }
 
     private void startTimer() {
-        main.removeCallbacks(timerTick);
+        if (timerTick != null) main.removeCallbacks(timerTick);
         timerTick = new Runnable() {
             @Override
             public void run() {
@@ -467,7 +515,7 @@ public class MainActivity extends Activity {
     }
 
     private void submitAnswer(boolean timeout) {
-        if (currentTaskId == null) return;
+        if (currentTaskId == null || submitting) return;
         hideKeyboard(answerInput);
         String answer = timeout ? "0" : ("choice".equals(currentAnswerMode) ? selectedChoice : answerInput.getText().toString().trim());
         if (answer == null || answer.isEmpty()) {
@@ -480,9 +528,15 @@ public class MainActivity extends Activity {
         } catch (Exception ignored) {
         }
         submitButton.setEnabled(false);
+        submitting = true;
+        final int generation = taskGeneration;
         api("POST", "/api/v1/tasks/" + currentTaskId + "/submissions", body, new JsonCallback() {
             @Override
             public void ok(Object payload) throws Exception {
+                if (generation != taskGeneration) return;
+                clearTask();
+                answerInput.setEnabled(false);
+                for (int i = 0; i < choiceRow.getChildCount(); i++) choiceRow.getChildAt(i).setEnabled(false);
                 JSONObject json = (JSONObject) payload;
                 boolean correct = "correct".equals(json.getString("result_status"));
                 String message = correct
@@ -495,6 +549,9 @@ public class MainActivity extends Activity {
 
             @Override
             public void fail(String message) {
+                if (generation != taskGeneration) return;
+                submitting = false;
+                submitButton.setEnabled(!timeout);
                 showTaskMessage(message, false);
             }
         });
@@ -509,6 +566,8 @@ public class MainActivity extends Activity {
     }
 
     private void renderLibrary() {
+        clearTask();
+        currentView = "library";
         page.removeAllViews();
         page.addView(sectionTitle("Scenario library", "Daily-life categories with randomized, choreographed templates."));
         GridLayout grid = new GridLayout(this);
@@ -520,6 +579,8 @@ public class MainActivity extends Activity {
     }
 
     private void renderProgress() {
+        clearTask();
+        currentView = "progress";
         page.removeAllViews();
         page.addView(sectionTitle("Progress", "Your pace, practical accuracy, and leaderboard."));
         GridLayout summary = new GridLayout(this);
@@ -538,7 +599,7 @@ public class MainActivity extends Activity {
                 row.setGravity(Gravity.CENTER_VERTICAL);
                 row.setPadding(dp(14), dp(12), dp(14), dp(12));
                 row.addView(text("#" + entry.getInt("rank"), 16, BLUE, Typeface.BOLD));
-                row.addView(text(entry.getString("username"), 16, INK, Typeface.BOLD), lp(0, -2, 1, 16, 0, 0));
+                row.addView(text(entry.getString("username"), 16, INK, Typeface.BOLD), weightedLp(1, 16, 0, 0));
                 row.addView(text(entry.getInt("score") + " pts", 14, MUTED, Typeface.BOLD));
                 page.addView(row, lp(-1, -2, 0, 0, 0, 8));
             } catch (Exception ignored) {
@@ -547,6 +608,8 @@ public class MainActivity extends Activity {
     }
 
     private void renderSettings() {
+        clearTask();
+        currentView = "settings";
         page.removeAllViews();
         page.addView(sectionTitle("Settings", "Connect to a local or hosted MathBlitz API."));
         LinearLayout settings = card();
@@ -558,12 +621,7 @@ public class MainActivity extends Activity {
         settings.addView(urlInput);
         Button save = primaryButton("Save API URL");
         settings.addView(save, lp(-1, -2, 0, 14, 0, 0));
-        save.setOnClickListener(v -> {
-            baseUrl = trimSlash(urlInput.getText().toString().trim());
-            prefs.edit().putString("baseUrl", baseUrl).apply();
-            setPageLoading("Saved. Reloading catalog...");
-            loadInitialData(false);
-        });
+        save.setOnClickListener(v -> saveBaseUrl(urlInput));
         Button signOut = ghostButton("Sign out");
         settings.addView(signOut, lp(-1, -2, 0, 10, 0, 0));
         signOut.setOnClickListener(v -> {
@@ -572,6 +630,26 @@ public class MainActivity extends Activity {
             username = null;
             showAuth();
         });
+    }
+
+    private void saveBaseUrl(EditText input) {
+        try {
+            String value = trimSlash(input.getText().toString().trim());
+            URL url = new URL(value);
+            if (!("http".equals(url.getProtocol()) || "https".equals(url.getProtocol()))
+                    || url.getHost().isEmpty() || url.getUserInfo() != null) {
+                throw new IllegalArgumentException("Use an HTTP or HTTPS API URL without credentials.");
+            }
+            baseUrl = value;
+            token = null;
+            username = null;
+            prefs.edit().putString("baseUrl", baseUrl).remove("token").remove("username").apply();
+            showAuth();
+            setStatus("API URL saved. Sign in to continue.");
+        } catch (Exception error) {
+            if ("auth".equals(currentView)) setStatus("Enter a valid HTTP or HTTPS API URL.");
+            else setPageError("Enter a valid HTTP or HTTPS API URL.");
+        }
     }
 
     private void refreshDashboard() {
@@ -585,6 +663,12 @@ public class MainActivity extends Activity {
                 streak = json.optInt("streak", 0);
                 if (scoreLabel != null) scoreLabel.setText(String.valueOf(totalScore));
                 if (dailyLabel != null) dailyLabel.setText(solvedToday + " / 12");
+                if ("practice".equals(currentView)) {
+                    insightScore.setText(String.valueOf(totalScore));
+                    insightDaily.setText(solvedToday + " / 12");
+                    insightAccuracy.setText(String.format(Locale.US, "%.1f%%", accuracy));
+                    insightStreak.setText(streak + " solves");
+                }
             }
 
             @Override
@@ -609,16 +693,18 @@ public class MainActivity extends Activity {
     }
 
     private void api(String method, String path, JSONObject body, JsonCallback callback) {
+        final String requestBase = baseUrl;
+        final String requestToken = token;
         executor.execute(() -> {
             try {
-                URL url = new URL(trimSlash(baseUrl) + path);
+                URL url = new URL(trimSlash(requestBase) + path);
                 HttpURLConnection connection = (HttpURLConnection) url.openConnection();
                 connection.setRequestMethod(method);
                 connection.setConnectTimeout(8000);
                 connection.setReadTimeout(12000);
                 connection.setRequestProperty("Accept", "application/json");
                 connection.setRequestProperty("Content-Type", "application/json");
-                if (token != null) connection.setRequestProperty("Authorization", "Bearer " + token);
+                if (requestToken != null) connection.setRequestProperty("Authorization", "Bearer " + requestToken);
                 if (body != null) {
                     connection.setDoOutput(true);
                     byte[] data = body.toString().getBytes(StandardCharsets.UTF_8);
@@ -629,9 +715,16 @@ public class MainActivity extends Activity {
                 int code = connection.getResponseCode();
                 String text = read(code >= 400 ? connection.getErrorStream() : connection.getInputStream());
                 Object payload = text.trim().startsWith("[") ? new JSONArray(text) : new JSONObject(text);
-                if (code == 401 && token != null) {
+                if (!requestBase.equals(baseUrl)) return;
+                if (requestToken != null && !requestToken.equals(token)) return;
+                if (code == 401 && requestToken != null) {
                     prefs.edit().remove("token").remove("username").apply();
-                    main.post(() -> showAuth());
+                    main.post(() -> {
+                        token = null;
+                        username = null;
+                        showAuth();
+                        setStatus("Your session has ended. Sign in again.");
+                    });
                     return;
                 }
                 if (code >= 400) {
@@ -675,7 +768,7 @@ public class MainActivity extends Activity {
         });
         card.addView(iconBadge(iconText(item), accent(item.accent)));
         LinearLayout copy = vertical();
-        card.addView(copy, lp(0, -2, 1, 12, 0, 0));
+        card.addView(copy, weightedLp(1, 12, 0, 0));
         copy.addView(text(item.name, 17, INK, Typeface.BOLD));
         copy.addView(text(item.skill.toUpperCase(Locale.US), 12, MUTED, Typeface.BOLD));
         if (large) {
@@ -706,8 +799,8 @@ public class MainActivity extends Activity {
         card.setPadding(dp(14), dp(12), dp(14), dp(12));
         card.addView(text(value, 22, BLUE, Typeface.BOLD));
         card.addView(text(label.toUpperCase(Locale.US), 11, MUTED, Typeface.BOLD));
-        if ("daily focus".equalsIgnoreCase(label)) dailyLabel = (TextView) card.getChildAt(0);
-        if ("total score".equalsIgnoreCase(label)) scoreLabel = (TextView) card.getChildAt(0);
+        if (dailyLabel == null && "daily focus".equalsIgnoreCase(label)) dailyLabel = (TextView) card.getChildAt(0);
+        if (scoreLabel == null && "total score".equalsIgnoreCase(label)) scoreLabel = (TextView) card.getChildAt(0);
         return card;
     }
 
@@ -719,6 +812,7 @@ public class MainActivity extends Activity {
 
     private LinearLayout baseRoot() {
         LinearLayout view = vertical();
+        view.setFitsSystemWindows(true);
         view.setBackgroundColor(BG);
         return view;
     }
@@ -831,6 +925,9 @@ public class MainActivity extends Activity {
         button.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
         button.setBackground(roundRect(bgColor, bgColor, 1, 14));
         button.setMinHeight(dp(48));
+        button.setMinWidth(0);
+        button.setMinimumWidth(0);
+        button.setPadding(dp(10), dp(8), dp(10), dp(8));
         return button;
     }
 
@@ -848,13 +945,13 @@ public class MainActivity extends Activity {
 
     private LinearLayout.LayoutParams lp(int width, int height, int left, int top, int right, int bottom) {
         LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(width, height);
-        params.setMargins(left, top, right, bottom);
+        params.setMargins(dp(left), dp(top), dp(right), dp(bottom));
         return params;
     }
 
-    private LinearLayout.LayoutParams lp(int width, int height, float weight, int left, int top, int right) {
-        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(width, height, weight);
-        params.setMargins(left, top, right, 0);
+    private LinearLayout.LayoutParams weightedLp(float weight, int left, int top, int right) {
+        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(0, -2, weight);
+        params.setMargins(dp(left), dp(top), dp(right), 0);
         return params;
     }
 

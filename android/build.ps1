@@ -1,6 +1,6 @@
 $ErrorActionPreference = "Stop"
 
-$Root = Split-Path -Parent $MyInvocation.MyCommand.Path
+$Root = [System.IO.Path]::GetFullPath((Split-Path -Parent $MyInvocation.MyCommand.Path))
 $Sdk = $env:ANDROID_HOME
 if (-not $Sdk) { $Sdk = $env:ANDROID_SDK_ROOT }
 if (-not $Sdk) { $Sdk = Join-Path $env:LOCALAPPDATA "Android\Sdk" }
@@ -43,7 +43,10 @@ foreach ($Tool in @($Javac, $Jar, $Keytool)) {
     if (-not (Test-Path -LiteralPath $Tool)) { throw "Required JDK tool missing: $Tool" }
 }
 
-$Build = Join-Path $Root "build"
+$Build = [System.IO.Path]::GetFullPath((Join-Path $Root "build"))
+if ((Split-Path -Parent $Build) -ne $Root -or (Split-Path -Leaf $Build) -ne "build") {
+    throw "Build output must be the android/build directory."
+}
 $Compiled = Join-Path $Build "compiled"
 $Generated = Join-Path $Build "generated"
 $Classes = Join-Path $Build "classes"
@@ -51,7 +54,11 @@ $Dex = Join-Path $Build "dex"
 $UnsignedApk = Join-Path $Build "mathblitz-unsigned.apk"
 $AlignedApk = Join-Path $Build "mathblitz-aligned.apk"
 $SignedApk = Join-Path $Build "mathblitz-debug.apk"
-$Keystore = Join-Path $Build "debug.keystore"
+$Keystore = Join-Path $Root "debug.keystore"
+$PreviousKeystore = Join-Path $Build "debug.keystore"
+if (-not (Test-Path -LiteralPath $Keystore) -and (Test-Path -LiteralPath $PreviousKeystore)) {
+    Copy-Item -LiteralPath $PreviousKeystore -Destination $Keystore
+}
 
 if (Test-Path -LiteralPath $Build) { Remove-Item -LiteralPath $Build -Recurse -Force }
 New-Item -ItemType Directory -Force -Path $Compiled, $Generated, $Classes, $Dex | Out-Null
@@ -88,16 +95,18 @@ if ($LASTEXITCODE -ne 0) { throw "Adding dex to APK failed." }
 & $Zipalign -f 4 $UnsignedApk $AlignedApk
 if ($LASTEXITCODE -ne 0) { throw "zipalign failed." }
 
-& $Keytool -genkeypair `
-    -alias androiddebugkey `
-    -keyalg RSA `
-    -keysize 2048 `
-    -validity 10000 `
-    -keystore $Keystore `
-    -storepass android `
-    -keypass android `
-    -dname "CN=Android Debug,O=MathBlitz,C=US" | Out-Null
-if ($LASTEXITCODE -ne 0) { throw "debug keystore generation failed." }
+if (-not (Test-Path -LiteralPath $Keystore)) {
+    & $Keytool -genkeypair `
+        -alias androiddebugkey `
+        -keyalg RSA `
+        -keysize 2048 `
+        -validity 10000 `
+        -keystore $Keystore `
+        -storepass android `
+        -keypass android `
+        -dname "CN=Android Debug,O=MathBlitz,C=US" | Out-Null
+    if ($LASTEXITCODE -ne 0) { throw "debug keystore generation failed." }
+}
 
 & $Apksigner sign `
     --ks $Keystore `

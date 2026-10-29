@@ -191,13 +191,16 @@ class PracticeService:
             duration_ms=int(elapsed_seconds * 1000),
             submitted_at=now,
         )
-        AttemptRepository(session).add(attempt)
         try:
+            AttemptRepository(session).add(attempt)
             session.commit()
         except IntegrityError as exc:
             session.rollback()
             raise ConflictError("This task has already been submitted.") from exc
-        self.cache.delete(f"dashboard:{user.id}", "leaderboard:10")
+        self.cache.delete(
+            f"dashboard:{user.id}",
+            *(f"leaderboard:{limit}" for limit in range(1, 101)),
+        )
         return {
             "id": attempt.id,
             "task_id": task.id,
