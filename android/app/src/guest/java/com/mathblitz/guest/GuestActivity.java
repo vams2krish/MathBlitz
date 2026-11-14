@@ -3,7 +3,10 @@ package com.mathblitz.guest;
 import android.app.Activity;
 import android.net.Uri;
 import android.os.Bundle;
+import android.util.Log;
 import android.view.View;
+import android.webkit.WebChromeClient;
+import android.webkit.WebResourceError;
 import android.webkit.WebResourceRequest;
 import android.webkit.WebResourceResponse;
 import android.webkit.WebView;
@@ -31,8 +34,26 @@ public final class GuestActivity extends Activity {
         web.getSettings().setDomStorageEnabled(true);
         web.getSettings().setAllowFileAccess(false);
         web.getSettings().setAllowContentAccess(false);
+        // WebView treats the synthetic HTTPS origin as network-capable; intercept every request below.
+        web.getSettings().setBlockNetworkLoads(false);
         web.getSettings().setMediaPlaybackRequiresUserGesture(true);
+        web.setWebChromeClient(new WebChromeClient() {
+            @Override
+            public void onReceivedTitle(WebView view, String title) {
+                Log.i("MathBlitzGuest", "Workspace title: " + title);
+            }
+        });
         web.setWebViewClient(new WebViewClient() {
+            @Override
+            public void onReceivedError(WebView view, WebResourceRequest request, WebResourceError error) {
+                if (request.isForMainFrame()) Log.e("MathBlitzGuest", "Could not open local workspace: " + error.getDescription());
+            }
+
+            @Override
+            public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
+                return !URL.equals(request.getUrl().toString());
+            }
+
             @Override
             public boolean shouldOverrideUrlLoading(WebView view, String url) {
                 return !URL.equals(url);
@@ -57,7 +78,10 @@ public final class GuestActivity extends Activity {
                     return new WebResourceResponse(type, "UTF-8", 200, "OK",
                             Collections.singletonMap("Content-Security-Policy", CSP),
                             getAssets().open("web" + path));
-                } catch (IOException error) { return missing(); }
+                } catch (IOException error) {
+                    Log.e("MathBlitzGuest", "Missing bundled resource: " + path, error);
+                    return missing();
+                }
             }
         });
         frame.addView(web, new FrameLayout.LayoutParams(-1, -1));

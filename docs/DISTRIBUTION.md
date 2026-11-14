@@ -3,9 +3,11 @@
 | Target | Build and availability |
 | --- | --- |
 | Web | [Live Vercel guest app](https://mathblitz-eight.vercel.app/), no sign-in required |
-| Windows | `artifacts/windows/MathBlitz-2.1.0-Windows-x64-Setup.exe`, unsigned x64 installer |
+| Windows | [Download build ZIP](https://github.com/vams2krish/MathBlitz/actions/runs/43584237309/artifacts/14109781010), containing the unsigned x64 setup EXE |
 | Android | [Download APK](https://mathblitz-eight.vercel.app/downloads/MathBlitz-2.1.0-Android.apk), debug-signed sideload build for Android 6.0+ |
-| iOS | iPhone/iPad Xcode project and unsigned Apple Silicon simulator build workflow. No TestFlight build yet. |
+| iOS | [Apple Silicon simulator build](https://github.com/vams2krish/MathBlitz/actions/runs/43584237309/artifacts/14109253724) and iPhone/iPad Xcode project. No TestFlight build yet. |
+
+The GitHub build ZIPs require sign-in and expire. The Android APK download does not require an account.
 
 Guest progress and sound preferences are stored on the device. Recent history is capped at 1,000 attempts. Different devices, browsers, and the FastAPI account edition do not share guest data. Focus music is opt-in per session and pauses when the app is hidden. The Windows, Android, and iOS packages bundle the web assets and puzzle bank; no backend, signup, or network connection is required for guest practice.
 
