@@ -1,0 +1,16 @@
+{
+  "name": "mathblitz-ios",
+  "version": "2.1.0",
+  "private": true,
+  "scripts": {
+    "stage": "node ../scripts/stage_guest.mjs web",
+    "sync": "npm run stage && cap sync ios"
+  },
+  "dependencies": {
+    "@capacitor/core": "8.6.2",
+    "@capacitor/ios": "8.6.2"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "8.6.2"
+  }
+}

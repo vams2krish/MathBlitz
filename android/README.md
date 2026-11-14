@@ -1,5 +1,7 @@
 # MathBlitz Android
 
+For the standalone offline APK, run `./android/build.ps1 -Guest` from the repository root. See [builds and distribution](../docs/DISTRIBUTION.md) for installation instructions. The rest of this page covers the separate native account client.
+
 Native Android client for the MathBlitz FastAPI service.
 
 ## What It Includes

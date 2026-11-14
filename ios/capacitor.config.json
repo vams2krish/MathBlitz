@@ -1,0 +1,6 @@
+{
+  "appId": "com.mathblitz.ios",
+  "appName": "MathBlitz",
+  "webDir": "web",
+  "ios": { "path": "native", "contentInset": "never", "backgroundColor": "#F5F7FB" }
+}

@@ -2,11 +2,16 @@
 <html lang="en">
   <head>
     <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta name="mathblitz-mode" content="accounts">
+    <meta name="theme-color" content="#12243a">
     <title>MathBlitz | Practical daily math</title>
     <meta name="description" content="Professional daily-life math challenges for shopping, work, housing, health, finance, and home decisions.">
-    <link rel="stylesheet" href="/assets/styles.css?v=practical-3">
-    <script src="/assets/app.js?v=practical-3" defer></script>
+    <link rel="icon" href="/assets/logo.svg" type="image/svg+xml">
+    <link rel="stylesheet" href="/assets/styles.css?v=release-1">
+    <script src="/assets/guest.js?v=release-1" defer></script>
+    <script src="/assets/audio.js?v=release-1" defer></script>
+    <script src="/assets/app.js?v=release-1" defer></script>
   </head>
   <body>
     <div class="scene-grid" aria-hidden="true"></div>
@@ -16,12 +21,12 @@
     <main class="auth-shell" id="auth-view">
       <section class="auth-copy">
         <a class="brand" href="/" aria-label="MathBlitz home">
-          <span class="brand-mark"><svg viewBox="0 0 24 24"><path d="M4 17 9 7l3 7 3-7 5 10"/></svg></span>
+          <img class="brand-mark" src="/assets/logo.svg" width="44" height="44" alt="">
           <span>MathBlitz</span>
         </a>
         <p class="hero-kicker">Practical math for everyday decisions</p>
         <h1>Build sharper judgment with real-life number sense.</h1>
-        <p>Short scenario challenges for shopping, meetings, home projects, finance, health science, and quick estimates. Designed to be useful from age 5 to 90.</p>
+        <p>Short scenario challenges for shopping, meetings, home projects, finance, health science, and quick estimates.</p>
         <div class="formula-cloud" aria-hidden="true">
           <span class="formula-card blue">$ / unit</span>
           <span class="formula-card orange">20% off</span>
@@ -31,7 +36,7 @@
         <div class="auth-metrics" aria-label="Scenario highlights">
           <div><strong>12</strong><span>daily-life categories</span></div>
           <div><strong>5</strong><span>difficulty levels</span></div>
-          <div><strong>120k+</strong><span>scenario variations</span></div>
+          <div><strong>1,920</strong><span>guest challenges</span></div>
         </div>
         <div class="level-preview" aria-label="Available challenge levels">
           <span>Very Easy</span><span>Easy</span><span>Medium</span><span>Hard</span><span>Extreme Hard</span>
@@ -40,6 +45,11 @@
       <section class="auth-panel" aria-label="Account access">
         <p class="panel-kicker">Personal practice workspace</p>
         <h2>Open MathBlitz</h2>
+        <div class="guest-entry">
+          <button class="button primary" id="guest-button" type="button">Practice as a guest</button>
+          <p class="form-note">No account needed. Guest progress stays on this device.</p>
+        </div>
+        <div id="account-controls">
         <div class="tab-group" role="tablist" aria-label="Account action">
           <button class="tab active" id="login-tab" type="button" role="tab" aria-selected="true">Sign in</button>
           <button class="tab" id="register-tab" type="button" role="tab" aria-selected="false">Create account</button>
@@ -55,30 +65,31 @@
           <p class="form-note">Use at least 8 characters.</p>
           <button class="button primary" type="submit">Create your workspace</button>
         </form>
+        </div>
         <p class="message" id="auth-message" role="alert"></p>
       </section>
     </main>
 
     <main class="application hidden" id="app-view">
       <aside class="sidebar">
-        <a class="brand" href="/">
-          <span class="brand-mark"><svg viewBox="0 0 24 24"><path d="M4 17 9 7l3 7 3-7 5 10"/></svg></span>
+        <a class="brand" href="/" aria-label="MathBlitz home">
+          <img class="brand-mark" src="/assets/logo.svg" width="44" height="44" alt="">
           <span>MathBlitz</span>
         </a>
         <nav class="navigation" aria-label="Application">
-          <button class="nav-item active" data-view="train">
+          <button class="nav-item active" data-view="train" aria-label="Practice" aria-current="page">
             <svg viewBox="0 0 24 24"><path d="M12 3v18M3 12h18M6 6l12 12M18 6 6 18"/></svg><span>Practice</span>
           </button>
-          <button class="nav-item" data-view="explore">
+          <button class="nav-item" data-view="explore" aria-label="Explore">
             <svg viewBox="0 0 24 24"><path d="m12 3 8 4.5v9L12 21l-8-4.5v-9zM12 12l8-4.5M12 12 4 7.5M12 12v9"/></svg><span>Explore</span>
           </button>
-          <button class="nav-item" data-view="progress">
+          <button class="nav-item" data-view="progress" aria-label="Progress">
             <svg viewBox="0 0 24 24"><path d="M4 19V9m6 10V4m6 15v-8m4 8H2"/></svg><span>Progress</span>
           </button>
-          <button class="nav-item" data-view="leaderboard">
+          <button class="nav-item" data-view="leaderboard" aria-label="Leaderboard">
             <svg viewBox="0 0 24 24"><path d="M8 21h8M12 17v4M7 4h10v6a5 5 0 0 1-10 0zM7 7H4v2a4 4 0 0 0 4 4m9-6h3v2a4 4 0 0 1-4 4"/></svg><span>Leaderboard</span>
           </button>
-          <button class="nav-item" data-view="settings">
+          <button class="nav-item" data-view="settings" aria-label="Settings">
             <svg viewBox="0 0 24 24"><path d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Z"/><path d="M19 12a7.3 7.3 0 0 0-.1-1l2-1.5-2-3.4-2.4 1a7 7 0 0 0-1.7-1L14.5 3h-5l-.3 3.1a7 7 0 0 0-1.7 1l-2.4-1-2 3.4 2 1.5a7.3 7.3 0 0 0 0 2l-2 1.5 2 3.4 2.4-1a7 7 0 0 0 1.7 1l.3 3.1h5l.3-3.1a7 7 0 0 0 1.7-1l2.4 1 2-3.4-2-1.5a7.3 7.3 0 0 0 .1-1Z"/></svg><span>Settings</span>
           </button>
         </nav>
@@ -88,15 +99,12 @@
           <div class="progress-track"><span id="sidebar-goal-fill"></span></div>
           <p>Small daily scenarios. Better everyday decisions.</p>
         </div>
-        <button id="logout-button" class="logout" type="button">
-          <svg viewBox="0 0 24 24"><path d="M10 17v3H4V4h6v3m5 10 5-5-5-5m5 5H9"/></svg><span>Sign out</span>
-        </button>
       </aside>
 
       <section class="workspace">
         <header class="workspace-header">
           <div>
-            <p class="header-badge"><span></span> Practical scenario practice</p>
+            <p class="header-badge" id="workspace-mode"><span></span> Practical scenario practice</p>
             <p class="welcome">Hello, <span id="username-label"></span></p>
             <h1>Choose a daily-life scenario and make the numbers clear.</h1>
             <p class="subheading">Practice the math behind purchases, meetings, housing, commute costs, health science, home projects, and savings decisions.</p>
@@ -115,7 +123,7 @@
 
         <section id="train-view" class="page active">
           <div class="section-title">
-            <div><h2>Choose a scenario category</h2><p>Each category generates thousands of practical, age-flexible challenges.</p></div>
+            <div><h2>Scenario categories</h2><p>Pick a real-life challenge to practice.</p></div>
             <button class="text-action" id="explore-link" type="button">View all categories</button>
           </div>
           <div class="activity-deck" id="activity-cards" aria-label="Featured scenarios"></div>
@@ -137,7 +145,7 @@
                       <h2 id="task-activity">Shopping Value</h2>
                     </div>
                   </div>
-                  <div class="timer-ring" id="timer-ring" aria-live="polite">
+                  <div class="timer-ring" id="timer-ring" role="timer">
                     <strong id="timer-value">--</strong><span>seconds</span>
                   </div>
                 </div>
@@ -148,7 +156,7 @@
                 <form id="answer-form" class="solution-form">
                   <label class="answer-input" id="answer-input-wrap">
                     <span>Your solution</span>
-                    <input id="answer-input" type="number" step="0.01" inputmode="decimal" autocomplete="off" disabled required>
+                    <input id="answer-input" type="number" step="any" inputmode="decimal" autocomplete="off" disabled required>
                   </label>
                   <div class="choice-options hidden" id="choice-options" aria-label="Solution options">
                     <button type="button" data-answer="1">Option 1</button>
@@ -235,10 +243,13 @@
           <form class="settings-panel" id="settings-form">
             <label class="control"><span>Default scenario</span><select id="settings-activity"></select></label>
             <label class="control"><span>Default challenge level</span><select id="settings-difficulty"></select></label>
-            <label class="toggle"><input id="settings-sound" type="checkbox"><span>Enable focus sound feedback</span></label>
+            <label class="toggle"><input id="settings-sound" type="checkbox"><span>Scenario and answer sounds</span></label>
+            <label class="toggle"><input id="settings-music" type="checkbox"><span>Play quiet focus music</span></label>
+            <p class="form-note">Music starts only when enabled, pauses when the app is hidden, and is off when you reopen the workspace.</p>
             <button class="button primary" type="submit">Save preferences</button>
             <p class="message" id="settings-message" role="status"></p>
           </form>
+          <button id="logout-button" class="button secondary account-exit" type="button">Sign out</button>
         </section>
       </section>
     </main>

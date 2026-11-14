@@ -1,3 +1,4 @@
+param([switch]$Guest)
 $ErrorActionPreference = "Stop"
 
 $Root = [System.IO.Path]::GetFullPath((Split-Path -Parent $MyInvocation.MyCommand.Path))
@@ -43,9 +44,10 @@ foreach ($Tool in @($Javac, $Jar, $Keytool)) {
     if (-not (Test-Path -LiteralPath $Tool)) { throw "Required JDK tool missing: $Tool" }
 }
 
-$Build = [System.IO.Path]::GetFullPath((Join-Path $Root "build"))
-if ((Split-Path -Parent $Build) -ne $Root -or (Split-Path -Leaf $Build) -ne "build") {
-    throw "Build output must be the android/build directory."
+$BuildName = if ($Guest) { "build-guest" } else { "build" }
+$Build = [System.IO.Path]::GetFullPath((Join-Path $Root $BuildName))
+if ((Split-Path -Parent $Build) -ne $Root -or (Split-Path -Leaf $Build) -ne $BuildName) {
+    throw "Build output must be inside the Android project."
 }
 $Compiled = Join-Path $Build "compiled"
 $Generated = Join-Path $Build "generated"
@@ -53,7 +55,8 @@ $Classes = Join-Path $Build "classes"
 $Dex = Join-Path $Build "dex"
 $UnsignedApk = Join-Path $Build "mathblitz-unsigned.apk"
 $AlignedApk = Join-Path $Build "mathblitz-aligned.apk"
-$SignedApk = Join-Path $Build "mathblitz-debug.apk"
+$SourceSet = if ($Guest) { "guest" } else { "main" }
+$SignedApk = Join-Path $Build $(if ($Guest) { "MathBlitz-2.1.0-Android.apk" } else { "mathblitz-debug.apk" })
 $Keystore = Join-Path $Root "debug.keystore"
 $PreviousKeystore = Join-Path $Build "debug.keystore"
 if (-not (Test-Path -LiteralPath $Keystore) -and (Test-Path -LiteralPath $PreviousKeystore)) {
@@ -63,6 +66,12 @@ if (-not (Test-Path -LiteralPath $Keystore) -and (Test-Path -LiteralPath $Previo
 if (Test-Path -LiteralPath $Build) { Remove-Item -LiteralPath $Build -Recurse -Force }
 New-Item -ItemType Directory -Force -Path $Compiled, $Generated, $Classes, $Dex | Out-Null
 
+if ($Guest) {
+    $AssetRoot = Join-Path $Build "assets"
+    & node (Join-Path (Split-Path -Parent $Root) "scripts\stage_guest.mjs") (Join-Path $AssetRoot "web")
+    if ($LASTEXITCODE -ne 0) { throw "Staging standalone web assets failed." }
+}
+
 & $Aapt2 compile --dir (Join-Path $Root "app\src\main\res") -o $Compiled
 if ($LASTEXITCODE -ne 0) { throw "aapt2 compile failed." }
 
@@ -71,14 +80,20 @@ if (-not $FlatFiles) { throw "No compiled Android resources found." }
 
 & $Aapt2 link `
     -I $AndroidJar `
-    --manifest (Join-Path $Root "app\src\main\AndroidManifest.xml") `
+    --manifest (Join-Path $Root "app\src\$SourceSet\AndroidManifest.xml") `
     --java $Generated `
     -o $UnsignedApk `
     @FlatFiles
 if ($LASTEXITCODE -ne 0) { throw "aapt2 link failed." }
 
+if ($Guest) {
+    # aapt2 -A on Windows emits backslashes that Android's asset manager cannot resolve.
+    & $Jar uf $UnsignedApk -C $Build assets/web
+    if ($LASTEXITCODE -ne 0) { throw "Adding standalone web assets failed." }
+}
+
 $SourceFiles = @()
-$SourceFiles += Get-ChildItem -Path (Join-Path $Root "app\src\main\java") -Recurse -Filter *.java | ForEach-Object FullName
+$SourceFiles += Get-ChildItem -Path (Join-Path $Root "app\src\$SourceSet\java") -Recurse -Filter *.java | ForEach-Object FullName
 $SourceFiles += Get-ChildItem -Path $Generated -Recurse -Filter *.java | ForEach-Object FullName
 if (-not $SourceFiles) { throw "No Java source files found." }
 

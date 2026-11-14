@@ -1,4 +1,5 @@
 const DAILY_GOAL = 12;
+const guestOnly = document.querySelector('meta[name="mathblitz-mode"]').content === "guest";
 const state = {
   token: sessionStorage.getItem("mathblitz_token"),
   user: JSON.parse(sessionStorage.getItem("mathblitz_user") || "null"),
@@ -9,6 +10,8 @@ const state = {
   difficulty: "Medium",
   task: null,
   timer: null,
+  guest: false,
+  taskRequest: 0,
 };
 
 const byId = (id) => document.getElementById(id);
@@ -70,6 +73,7 @@ function slugName(value) {
 }
 
 async function api(path, options = {}) {
+  if (state.guest) return MathBlitzGuest.request(path, options);
   const headers = { "Content-Type": "application/json", ...(options.headers || {}) };
   if (state.token) headers.Authorization = `Bearer ${state.token}`;
   const response = await fetch(`/api/v1${path}`, { ...options, headers });
@@ -117,10 +121,14 @@ async function authenticate(event, endpoint) {
 }
 
 function signOut() {
+  resetTask();
+  MathBlitzAudio.setMusic(false);
+  MathBlitzGuest.clearTask();
   clearInterval(state.timer);
   state.token = null;
   state.user = null;
-  state.task = null;
+  state.guest = false;
+  state.preferences = null;
   sessionStorage.removeItem("mathblitz_token");
   sessionStorage.removeItem("mathblitz_user");
   byId("app-view").classList.add("hidden");
@@ -134,7 +142,7 @@ function activityById(id) {
 function activityButton(activity, large = false) {
   const tag = large ? "div" : "span";
   const copyClass = large ? "explore-copy" : "activity-copy";
-  const variants = activity.variant_estimate
+  const variants = state.guest ? '<span class="variant-count">160 guest challenges</span>' : activity.variant_estimate
     ? `<span class="variant-count">${Math.round(activity.variant_estimate / 1000)}k+ variations</span>`
     : "";
   return `
@@ -258,7 +266,7 @@ function startTimer(task) {
   clearInterval(state.timer);
   function update() {
     const seconds = Math.max(0, Math.ceil((new Date(task.expires_at).getTime() - Date.now()) / 1000));
-    const ratio = Math.round((seconds / task.time_limit_seconds) * 100);
+    const ratio = Math.min(100, Math.round((seconds / task.time_limit_seconds) * 100));
     byId("timer-value").textContent = seconds;
     byId("timer-ring").style.setProperty("--timer-progress", `${ratio}%`);
     if (seconds === 0 && !task.completed) {
@@ -267,8 +275,8 @@ function startTimer(task) {
       recordTimeout();
     }
   }
-  update();
   state.timer = setInterval(update, 1000);
+  update();
 }
 
 function configureAnswerControl(task) {
@@ -280,17 +288,37 @@ function configureAnswerControl(task) {
   byId("answer-input").value = "";
   byId("choice-options").querySelectorAll("button").forEach((button) => {
     button.classList.remove("selected");
+    button.disabled = false;
   });
   byId("submit-answer").disabled = isChoice;
-  if (!isChoice) byId("answer-input").focus();
 }
 
-async function newTask() {
+function resetTask() {
+  clearInterval(state.timer);
+  state.task = null;
+  state.taskRequest++;
+  byId("submit-answer").disabled = true;
+  byId("answer-input").disabled = true;
+  byId("choice-options").querySelectorAll("button").forEach((button) => { button.disabled = true; });
+}
+
+async function newTask(playSound = false) {
+  if (!state.catalog || !state.user) return;
+  if (playSound && state.preferences?.sound_enabled) MathBlitzAudio.unlock();
+  resetTask();
+  const request = state.taskRequest;
+  byId("task-question").textContent = "Loading your next scenario...";
+  byId("timer-value").textContent = "--";
+  byId("hint-panel").classList.add("hidden");
+  byId("hint-toggle").setAttribute("aria-expanded", "false");
+  byId("hint-toggle").disabled = true;
+  byId("task-result").classList.add("hidden");
   try {
     const task = await api("/tasks", {
       method: "POST",
       body: JSON.stringify({ activity_id: state.activityId, difficulty: state.difficulty }),
     });
+    if (request !== state.taskRequest) return;
     state.task = { ...task, completed: false };
     const activity = activityById(task.activity_id);
     byId("task-activity").textContent = task.activity_name;
@@ -299,12 +327,13 @@ async function newTask() {
     byId("current-task-icon").innerHTML = iconFor(activity.icon);
     byId("task-question").textContent = task.prompt;
     byId("task-hint").textContent = task.hint;
-    byId("hint-panel").classList.add("hidden");
-    byId("hint-toggle").setAttribute("aria-expanded", "false");
-    byId("task-result").classList.add("hidden");
+    byId("hint-toggle").disabled = false;
     configureAnswerControl(task);
-    startTimer(task);
+    startTimer(state.task);
+    if (playSound && state.preferences?.sound_enabled) MathBlitzAudio.play("start");
   } catch (error) {
+    if (request !== state.taskRequest) return;
+    byId("task-question").textContent = "Choose New scenario to try again.";
     showTaskResult(error.message, false);
   }
 }
@@ -312,7 +341,7 @@ async function newTask() {
 async function selectActivity(activityId, begin = true) {
   state.activityId = activityId;
   syncSelections();
-  if (begin) await newTask();
+  if (begin) await newTask(true);
 }
 
 function showTaskResult(text, success) {
@@ -322,7 +351,7 @@ function showTaskResult(text, success) {
   result.classList.toggle("wrong", !success);
 }
 
-async function applyResult(result) {
+function applyResult(result) {
   const correct = result.result_status === "correct";
   const text = correct
     ? `Excellent. You earned ${result.points} focus points.`
@@ -330,46 +359,52 @@ async function applyResult(result) {
       ? `Time elapsed. The solution was ${result.correct_answer}.`
       : `Close, but the solution was ${result.correct_answer}. Try the next scenario.`;
   showTaskResult(text, correct);
+  if (state.preferences?.sound_enabled) MathBlitzAudio.play(result.result_status);
   clearInterval(state.timer);
   byId("answer-input").disabled = true;
   byId("submit-answer").disabled = true;
-  await Promise.all([refreshDashboard(), refreshLeaderboard()]);
+  byId("choice-options").querySelectorAll("button").forEach((button) => { button.disabled = true; });
 }
 
-async function recordTimeout() {
-  if (!state.task || state.task.completed) return;
-  state.task.completed = true;
+async function finishTask(answer, timeout = false) {
+  const task = state.task;
+  if (!task || task.completed) return;
+  task.completed = true;
+  byId("submit-answer").disabled = true;
   try {
-    const result = await api(`/tasks/${state.task.id}/submissions`, {
+    const result = await api(`/tasks/${task.id}/submissions`, {
       method: "POST",
-      body: JSON.stringify({ answer: 0 }),
+      body: JSON.stringify({ answer }),
     });
-    await applyResult(result);
+    if (task !== state.task) return;
+    applyResult(result);
+    Promise.allSettled([refreshDashboard(), refreshLeaderboard()]);
   } catch (error) {
+    if (task !== state.task) return;
+    task.completed = timeout;
+    byId("submit-answer").disabled = timeout;
     showTaskResult(error.message, false);
   }
 }
 
-async function submitAnswer(event) {
+function recordTimeout() {
+  return finishTask(0, true);
+}
+
+function submitAnswer(event) {
   event.preventDefault();
-  if (!state.task || state.task.completed) return;
-  state.task.completed = true;
-  try {
-    const result = await api(`/tasks/${state.task.id}/submissions`, {
-      method: "POST",
-      body: JSON.stringify({ answer: byId("answer-input").value }),
-    });
-    await applyResult(result);
-  } catch (error) {
-    state.task.completed = false;
-    showTaskResult(error.message, false);
-  }
+  if (state.preferences?.sound_enabled) MathBlitzAudio.unlock();
+  return finishTask(byId("answer-input").value);
 }
 
-function selectView(viewName) {
+function selectView(viewName, move = true) {
   document.querySelectorAll(".nav-item").forEach((item) => {
-    item.classList.toggle("active", item.dataset.view === viewName);
+    const active = item.dataset.view === viewName;
+    item.classList.toggle("active", active);
+    if (active) item.setAttribute("aria-current", "page");
+    else item.removeAttribute("aria-current");
   });
+  if (move) window.scrollTo(0, 0);
   document.querySelectorAll(".page").forEach((page) => {
     page.classList.toggle("active", page.id === `${viewName}-view`);
   });
@@ -397,6 +432,11 @@ async function startApplication() {
   byId("auth-view").classList.add("hidden");
   byId("app-view").classList.remove("hidden");
   byId("username-label").textContent = state.user.username;
+  byId("workspace-mode").textContent = state.guest ? "Guest practice · Progress on this device" : "Practical scenario practice";
+  byId("logout-button").textContent = state.guest ? "Exit guest practice" : "Sign out";
+  byId("settings-music").checked = false;
+  document.querySelector('[data-view="leaderboard"]').classList.toggle("hidden", state.guest);
+  selectView("train");
   try {
     state.catalog = await api("/activities");
     renderCatalog();
@@ -409,6 +449,11 @@ async function startApplication() {
 }
 
 function bindEvents() {
+  byId("guest-button").addEventListener("click", () => {
+    state.guest = true;
+    state.user = { username: "Guest" };
+    startApplication();
+  });
   byId("login-tab").addEventListener("click", () => showAuthTab(false));
   byId("register-tab").addEventListener("click", () => showAuthTab(true));
   byId("login-form").addEventListener("submit", (event) => authenticate(event, "login"));
@@ -419,7 +464,7 @@ function bindEvents() {
     if (!button) return;
     state.difficulty = button.dataset.level;
     syncSelections();
-    newTask();
+    newTask(true);
   });
   byId("activity-cards").addEventListener("click", (event) => {
     const card = event.target.closest("button[data-activity]");
@@ -434,7 +479,7 @@ function bindEvents() {
   byId("explore-link").addEventListener("click", () => selectView("explore"));
   byId("choice-options").addEventListener("click", (event) => {
     const option = event.target.closest("button[data-answer]");
-    if (!option) return;
+    if (!option || !state.task || state.task.completed) return;
     byId("answer-input").value = option.dataset.answer;
     byId("choice-options").querySelectorAll("button").forEach((button) => {
       button.classList.toggle("selected", button === option);
@@ -446,7 +491,14 @@ function bindEvents() {
     const expanded = panel.classList.toggle("hidden") === false;
     byId("hint-toggle").setAttribute("aria-expanded", String(expanded));
   });
-  byId("new-task").addEventListener("click", newTask);
+  byId("new-task").addEventListener("click", () => newTask(true));
+  byId("settings-sound").addEventListener("change", (event) => {
+    if (event.target.checked) MathBlitzAudio.unlock().then((ready) => { if (ready) MathBlitzAudio.play("start"); });
+  });
+  byId("settings-music").addEventListener("change", async (event) => {
+    const enabled = await MathBlitzAudio.setMusic(event.target.checked);
+    event.target.checked = enabled;
+  });
   byId("answer-form").addEventListener("submit", submitAnswer);
   byId("settings-form").addEventListener("submit", savePreferences);
   document.querySelectorAll(".nav-item").forEach((item) => {
@@ -456,7 +508,8 @@ function bindEvents() {
 
 async function bootstrap() {
   bindEvents();
-  if (state.token && state.user) await startApplication();
+  byId("account-controls").classList.toggle("hidden", guestOnly);
+  if (!guestOnly && state.token && state.user) await startApplication();
 }
 
 bootstrap();

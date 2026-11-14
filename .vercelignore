@@ -1,0 +1,13 @@
+.git
+.venv
+.env*
+data
+docs
+android
+ios
+windows
+branding
+artifacts
+**/node_modules
+**/__pycache__
+.output

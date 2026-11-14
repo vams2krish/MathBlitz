@@ -8,6 +8,14 @@ A responsive browser interface and a native Android client share one versioned F
 
 **No Streamlit. No external AI service or API key required. No frontend build step.**
 
+### Play Or Install
+
+**[Open the live guest edition](https://mathblitz-eight.vercel.app/)** | **[Download the Android APK](https://mathblitz-eight.vercel.app/downloads/MathBlitz-2.1.0-Android.apk)**
+
+The free Vercel site, Windows x64 installer, Android APK, and iOS target share the same responsive guest workspace. Guest play includes 1,920 packaged entries across all 12 categories and five levels, optional feedback sounds and focus music, and on-device progress. The installed editions work offline. Guest scores do not sync between devices or enter the account leaderboard.
+
+See [Builds and distribution](docs/DISTRIBUTION.md) for platform builds, installation, and iOS TestFlight requirements. The self-hosted FastAPI account edition and its native Android client are still available.
+
 [Quick Start](#quick-start) | [Showcase](#android-showcase) | [Live Test](#live-demo-verification) | [Scenarios](#scenario-library) | [Architecture](#architecture) | [API](#rest-api) | [Android](#android-app)
 
 ![MathBlitz welcome screen with practical math scenarios, five difficulty levels, and account access](docs/images/mathblitz-welcome.jpg)

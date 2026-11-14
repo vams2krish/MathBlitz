@@ -6,3 +6,16 @@ __pycache__/
 data/*.db
 data/*.db-*
 data/*.log
+.output/
+.vercel/
+artifacts/
+node_modules/
+windows/web/
+ios/web/
+ios/native/App/App/public/
+ios/native/App/App/capacitor.config.json
+ios/native/App/App/config.xml
+ios/native/App/CapApp-SPM/.build/
+ios/**/xcuserdata/
+*.xcarchive/
+*.ipa

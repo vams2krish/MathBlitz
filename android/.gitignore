@@ -1,4 +1,5 @@
 build/
+build-guest/
 local.properties
 *.jks
 *.keystore

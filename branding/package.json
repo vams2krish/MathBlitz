@@ -1,0 +1,7 @@
+{
+  "name": "mathblitz-branding",
+  "private": true,
+  "type": "module",
+  "scripts": { "build": "node icons.mjs" },
+  "devDependencies": { "@resvg/resvg-js": "2.6.2" }
+}
