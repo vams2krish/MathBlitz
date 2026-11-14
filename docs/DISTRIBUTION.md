@@ -20,6 +20,8 @@ npm.cmd --prefix windows run build
 
 Open the generated setup executable and follow the per-user installer. This build has no Authenticode publisher signature, so Windows may show a SmartScreen warning. Only install a build from a trusted source. To run the unpacked executable without installing, run `artifacts/windows/win-unpacked/MathBlitz.exe`.
 
+The [GitHub packaging workflow](https://github.com/vams2krish/MathBlitz/actions/workflows/package.yml) also uploads the Windows installer as a build artifact.
+
 ## Android
 
 Requires the Android SDK (build tools, platform 35 or newer, and command-line tools), JDK 17, and Node.js 24. Set `ANDROID_HOME` and `JAVA_HOME` if they are not already configured.
@@ -41,7 +43,7 @@ npm --prefix ios run sync
 open ios/native/App/App.xcodeproj
 ```
 
-Run the `App` scheme on a simulator first. The `Package MathBlitz` GitHub workflow also compiles an unsigned Apple Silicon simulator app. Its ZIP is not an IPA and cannot be installed on an iPhone or uploaded to TestFlight.
+Run the `App` scheme on a simulator first. The [Package MathBlitz GitHub workflow](https://github.com/vams2krish/MathBlitz/actions/workflows/package.yml) also compiles an unsigned Apple Silicon simulator app. Its ZIP is not an IPA and cannot be installed on an iPhone or uploaded to TestFlight.
 
 1. Enroll in the [Apple Developer Program](https://developer.apple.com/programs/whats-included/) and sign in to Xcode with the authorized Apple account.
 2. Register an available bundle ID (the project starts with `com.mathblitz.ios`) and create the matching App Store Connect app record. In Xcode, select your team under Signing & Capabilities and enable automatic signing.

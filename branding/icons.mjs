@@ -1,11 +1,13 @@
 import { Resvg } from '@resvg/resvg-js';
+import { PNG } from 'pngjs';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 
 const svg = await readFile(new URL('../frontend/assets/logo.svg', import.meta.url), 'utf8');
 const icon = (size, source = svg) => new Resvg(source, { fitTo: { mode: 'width', value: size } }).render().asPng();
 const iosIcon = new URL('../ios/native/App/App/Assets.xcassets/AppIcon.appiconset/AppIcon-512@2x.png', import.meta.url);
 await mkdir(new URL('./', iosIcon), { recursive: true });
-await writeFile(iosIcon, icon(1024, svg.replace(' rx="26"', '')));
+const opaqueIcon = PNG.sync.read(icon(1024, svg.replace(' rx="26"', '')));
+await writeFile(iosIcon, PNG.sync.write(opaqueIcon, { colorType: 2 }));
 const sizes = [16, 32, 48, 64, 128, 256];
 const ico = Buffer.alloc(6 + sizes.length * 16);
 ico.writeUInt16LE(1, 2);
